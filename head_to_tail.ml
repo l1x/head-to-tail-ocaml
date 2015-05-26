@@ -1,4 +1,6 @@
-module Re2 = Re2.Std.Re2
+open Re2
+
+(*module Re2 = Re2.Std.Re2*)
 module List = Core.Std.List
 module Result = Core.Std.Result
 module String = Core.Std.String
@@ -47,30 +49,19 @@ let find_words (word : bytes) (word_list : bytes list) =
   let pattern = Bytes.concat "|" (one_dot_words ~string:word ~char:'.') in
   remove [word;] (distinct (List.filter ~f:(fun word_lambda ->  word_matcher word_lambda pattern) word_list))
 
-let rec build_adj_list_aux (word : bytes) (dict) (acc) =
-  let word_list = remove word (distinct (find_words word dict)) in
-  match dict with
-   | [] -> acc
-   | _ -> build_adj_list_aux word (remove word_list dict) ((word, word_list) :: acc)
+let rec build_adj_list_aux dict acc =
+match dict with
+| [] -> acc
+| h::t -> 
+let wl = (find_words h (remove [h] t)) in
+  build_adj_list_aux (remove wl t) ((h, wl) :: acc)
 
 let build_adj_list ~word:(word : bytes) : (bytes * bytes list) list =
   let dict = read_file_lines "wordsEn.txt" in
   let length = String.length word in
   let nword_dict = List.filter ~f:(fun word_aux -> same_lenght length word_aux) dict in
-  build_adj_list_aux word nword_dict []
+  List.filter ~f:(fun x -> match x with | (_,[]) -> false | (_,_) -> true ) (build_adj_list_aux nword_dict [])
 
-(* ((word, list) (word, list) (word,list)...)
-
-(bytes * bytes list) list =                                                                                
-[ ("aah", ["aah"; "ash"; "bah"; "hah"; "rah"]); 
-  ("abc", ["abc"; "abo"; "abs"; "abt"; "arc"]);                    
-  ("abo", ["abc"; "abo"; "abs"; "abt"; "ado"; "ago"]);
-  ("abs", ["abc"; "abo"; "abs"; "abt"; "ads"; "ahs"; "ars"; "ass"; "lbs"; "tbs"]);
-  ("abt", ["abc"; "abo"; "abs"; "abt"; "act"; "aft"; "alt"; "ant"; "apt"; "art"]);
-  ("ace", ["ace"; "act"; "age"; "ale"; "ape"; "are"; "ate"; "ave"; "awe"; "axe"; "aye"; "ice"]);
-  ("act", ["abt"; "ace"; "act"; "aft"; "alt"; "ant"; "apt"; "art"; "jct"; "pct"]);
-  ("add", ["add"; "adj"; "ado"; "ads"; "adv"; "adz"; "aid"; "and"; "aud"; "odd"]);
-*)
   
   (*
  List.(range 0 n >>| fun x -> x * 2 + 1);
@@ -95,8 +86,6 @@ let rec print_nested (l : (bytes * bytes list) list) =
   match l with
   | [] -> print_bytes "ok \n"
   | (h::t)::t2 -> print_bytes h;print_nested t
-
-let 
 
 let main () =
   print_nested (build_adj_list ~word:"ape")
