@@ -77,9 +77,16 @@ let half_matrix_coordinates n =
   *)
   List.map ~f:(fun x -> (n, x) ) (range 0 (n -1))
 
-let half_matrix n =
+let half_matrix_builder n =
   (*returns a complete half matrix of n elements*)
-  List.map ~f:(fun x -> half_matrix_coordinates x) (range 1 n) 
+  List.map ~f:(fun x -> half_matrix_coordinates x) (range 1 n)
+
+let compress_half_matrix l = 
+  let rec compress_aux l k acc = 
+    match l with 
+    | [] -> (k, (List.rev acc)) 
+    | (k,v)::t -> compress_aux t k (v :: acc) in 
+    compress_aux l 0 []
 
 let is_match (tup) (arr) =
   let (a,b) = tup in
@@ -91,14 +98,37 @@ let is_match (tup) (arr) =
 let word_matcher (word : bytes) (pattern : bytes) =
   Result.is_ok (Re2.find_first (Re2.create_exn pattern) word)
 
+let partition_list l n =
+  let rec partition_list_aux l n acc tmp cnt=
+    match l,cnt with
+    |[],_ -> acc 
+    |a::t,cnt when cnt < n -> partition_list_aux t n acc (a :: tmp) (cnt + 1)
+    |a::t,cnt when cnt >= n -> partition_list_aux t n (tmp :: acc) [] 0 in
+    partition_list_aux l n [] [] 0
+
 let build_adj_list ~word:(word : bytes) : (int * int) list=
-  let dict = read_file_lines "wordsEn.txt" in
+  let dict = read_file_lines "test.file" in
   let length = String.length word in
   let nword_dict = Array.of_list (List.filter ~f:(fun word_aux -> same_lenght length word_aux) dict) in
   let num_elements = (Array.length nword_dict) - 1 in
-  let adj_list = List.concat (half_matrix num_elements) in
-  print_bytes ("# of items: " ^ (string_of_int (List.length adj_list)));
-  List.filter ~f:(fun x -> is_match x nword_dict) adj_list
+  let adj_list_complete = List.concat (half_matrix_builder num_elements) in
+  print_bytes ("# of items: " ^ (string_of_int (List.length adj_list_complete)));
+  
+  (*
+  
+    this is very slow
+    solution: implement splitting the adj_list_complete to 8 parts and create 8 threads 
+
+  *)
+  let partition_by = ((List.length adj_list_complete) / 8) in
+  let partitioned_list = partition_list adj_list_complete partition_by in
+    for i = 1 to 8 do 
+      In_thread.run (print_bytes string_of_int i)
+      (*List.filter ~f:(fun x -> is_match x nword_dict)*) 
+    done
+    
+
+  (*life sucks*)
 
 let tup_to_string (tup : (int * int)) =
   let (a,b) = tup in
